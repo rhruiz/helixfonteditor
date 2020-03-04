@@ -64,8 +64,8 @@ function parse(scriptBody) {
         img_data[x] = [];
       }
 
-      var is_black = (arr[char] >> i) & 1;
-      img_data[x][y * fonth + i] = is_black;
+      var v = (arr[char] >> i) & 1 == 1 ? 0 : 255;
+      img_data[x][y * fonth + i] = [v, v, v];
     }
   }
 
@@ -144,7 +144,7 @@ function initCanvas() {
 function applyImage() {
   for (var x = 0; x < img.length; ++x) {
     for (var y = 0; y < img[x].length; ++y) {
-      setPixel(x, y, img[x][y] == 1, false);
+      setPixel(x, y, img[x][y][0] == 0, false);
     }
   }
   drawRuler();
