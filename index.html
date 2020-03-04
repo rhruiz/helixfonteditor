@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8"/>
 <title>Helix Font Editor</title>
@@ -36,39 +36,39 @@ function parse(scriptBody) {
   // parse script
   var arr = [];
   script_lines = scriptBody.split("\n");
+
   for (var i = 0; i < script_lines.length; ++i) {
     if (start_index != -1) {
       if (script_lines[i].indexOf("};") >= 0) {
         end_index = i;
         break;
       }
-      var tmp = script_lines[i].split(',').map(function(val) { return val.trim().substr(2); });
-      var ar = [];
-      for (var j = 0; j < tmp.length; ++j) {
-        if (tmp[j] == "") continue;
-        ar.push(parseInt(tmp[j], 16));
-      }
-      arr.push(ar);
+
+      arr = arr.concat(script_lines[i].split(',')
+        .map(function(val) { return val.trim().substr(2); })
+        .filter(function(val) { return val != ""; })
+        .map(function(val) { return parseInt(val, 16); }));
     }
+
     if (script_lines[i].indexOf("font[] PROGMEM") >= 0 && start_index == -1) start_index = i + 1;
   }
+
   if (start_index == -1 || end_index == -1) return [];
 
-  // hex2img
-  for (var colc = 0; colc < colmax; ++colc) {
-    for (var fontwc = 0; fontwc < arr[0].length; ++fontwc) {
-      var tmp=[];
-      for (var rowc = 0; rowc < rowmax; ++rowc) {
-        for (var i = 0; i < fonth; ++i) {
-          var a = colmax * (rowmax - 1) - colmax * rowc+colc;
-          var val = arr[colmax * (rowmax - 1) - colmax * rowc+colc][fontwc];
-          var v = (val >> (7 - i)) & 1 ? 0 : 255;
-          tmp.push((fontwc == fontw - 1 && v) || (i == 0 && v) ? [200, 255, 255] : [v, v, v]);
-        }
+  for (var char = 0; char < arr.length; char++) {
+    var x = char % (colmax * fontw);
+    var y = Math.floor(Math.floor(char / fontw) / colmax);
+
+    for (var i = 0; i < fonth ; ++i) {
+      if (img_data[x] == undefined) {
+        img_data[x] = [];
       }
-      img_data.push(tmp);
+
+      var is_black = (arr[char] >> i) & 1;
+      img_data[x][y * fonth + i] = is_black;
     }
   }
+
   return img_data;
 }
 
@@ -78,23 +78,21 @@ function downloadScript() {
   for (var i = 0; i < start_index; ++i)
     body += script_lines[i] + "\n";
 
-  var rowm = colmax;
-  var colm = img[0].length / fonth;
-
   // img2hex
-  for (var colc = 0; colc < colm; ++colc) {
-    for (var rowc = 0; rowc < rowm; ++rowc) {
-      var line = ' ';
-      for (var fontwc = 0; fontwc < fontw; ++fontwc) {
-        var val = 0;
-        for (var fonthc = 0; fonthc < fonth; ++fonthc) {
-          b = img[fontw * rowc + fontwc][fonth * (colm-1) - fonth * colc + fonthc][0] < 128 ? 1 : 0;
-          val = (val << 1) | b;
-        }
-        line += ' 0x' + ('00' + val.toString(16).toUpperCase()).substr(-2) + ',';
+  for (var y = 0; y < rowmax; y++) {
+    var line = '';
+
+    for (var x = 0 ; x < img.length ; ++x) {
+      var val = 0;
+
+      for (var i = 0; i < fonth ; i++) {
+        val = (val << 1) | (img[x][y * fonth + fonth - 1 - i][0] < 128 ? 1 : 0);
       }
-      body += line + "\n";
+
+      line += ' 0x' + ('00' + val.toString(16).toUpperCase()).substr(-2) + ',';
     }
+
+    body += line + "\n";
   }
 
   for (var i = end_index; i < script_lines.length; ++i)
@@ -137,7 +135,7 @@ function initCanvas() {
   canvas.addEventListener('mousemove', onMouseMove);
   canvas.addEventListener('mouseup', onMouseUp);
   window.addEventListener('mouseup', onMouseUp);
-  window.addEventListener('contextmenu', function(e) { e.preventDefault(); }, false); 
+  window.addEventListener('contextmenu', function(e) { e.preventDefault(); }, false);
 
   drawRuler();
 }
@@ -145,7 +143,7 @@ function initCanvas() {
 function applyImage() {
   for (var x = 0; x < img.length; ++x) {
     for (var y = 0; y < img[x].length; ++y) {
-      setPixel(x, img[x].length - y - 1, img[x][y][0] == 0, false);
+      setPixel(x, y, img[x][y] == 1, false);
     }
   }
   drawRuler();
@@ -221,11 +219,11 @@ function rotateCanvas(deg) {
 function setPixel(x, y, black, ruler) {
   if (black) {
     ctx.fillStyle = "rgb(0, 0, 0)";
-    img[x][canvas_height - y - 1] = [0, 0, 0];
+    img[x][y] = [0, 0, 0];
   } else  {
     var grid = x % fontw == fontw - 1 || y % fonth == fonth - 1;
     ctx.fillStyle = grid ? "rgb(200, 255, 255)" : "rgb(255, 255, 255)";
-    img[x][canvas_height - y - 1] = grid ? [200, 255, 255] : [255, 255, 255];
+    img[x][y] = grid ? [200, 255, 255] : [255, 255, 255];
   }
   ctx.fillRect(x * zoom_level, y * zoom_level, zoom_level, zoom_level);
   if (ruler) drawRuler(x, y);
