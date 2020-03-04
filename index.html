@@ -83,11 +83,12 @@ function downloadScript() {
     var line = '';
 
     for (var x = 0 ; x < img.length ; ++x) {
-      var val = 0;
-
-      for (var i = 0; i < fonth ; i++) {
-        val = (val << 1) | (img[x][y * fonth + fonth - 1 - i][0] < 128 ? 1 : 0);
-      }
+      var val = img[x]
+        .slice(y * fonth, (y + 1) * fonth)
+        .reverse()
+        .reduce(function(acc, value) {
+          return (acc << 1) | (value[0] < 128 ? 1 : 0);
+        }, 0);
 
       line += ' 0x' + ('00' + val.toString(16).toUpperCase()).substr(-2) + ',';
     }
